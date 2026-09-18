@@ -8,11 +8,14 @@ import { noteName } from "../../core/notes";
 import { OnsetDetector } from "../../core/analysis/onset";
 import { el, replaceChildren, fmtMs } from "../../ui/dom";
 import { noteCard, table } from "../../ui/components";
+import { adviceCard, coachingBlock } from "../../ui/advice";
+import { dailyAdvice, type Trigger } from "../../content/advice";
 import { Runner } from "../shared";
 import { evaluateTonguing, nextTempo } from "./evaluate";
 
 interface Settings {
   target: number;
+  syllable: "single" | "double";
   perBeat: string;
   beats: number;
   startBpm: number;
@@ -52,7 +55,7 @@ class TonguingTrainer implements TrainerInstance {
     this.stage = el("div", { class: "stage" });
     this.result = el("div", { class: "result" });
     this.stats = el("div", { class: "stats" });
-    replaceChildren(this.ctx.root, this.stage, this.result, el("h3", {}, "この練習の成績"), this.stats);
+    replaceChildren(this.ctx.root, adviceCard(dailyAdvice("tonguing"), { compact: true, label: "今日のポイント" }), this.stage, this.result, el("h3", {}, "この練習の成績"), this.stats);
     this.bpm = this.s.startBpm;
     this.showStage();
     this.renderStats();
@@ -65,7 +68,7 @@ class TonguingTrainer implements TrainerInstance {
       this.stage,
       noteCard(this.ctx.tuba, this.s.target),
       el("div", { class: "tempo-big" }, `♩= ${this.bpm}`),
-      el("div", { class: "note-sub" }, `${label} × ${this.s.beats} 拍（${perBeat * this.s.beats} 音）`),
+      el("div", { class: "note-sub" }, `${label} × ${this.s.beats} 拍（${perBeat * this.s.beats} 音）・ ${this.s.syllable === "double" ? "タカタカ（ダブル）" : "タータータ（シングル）"}`),
     );
   }
 
@@ -79,7 +82,7 @@ class TonguingTrainer implements TrainerInstance {
     while (!r.isAborted) {
       this.showStage();
       const beatSec = 60 / this.bpm;
-      this.ctx.setStatus(`カウント ${COUNT_IN} 拍のあと、${beats} 拍タンギング（♩= ${this.bpm}）`);
+      this.ctx.setStatus(`カウント ${COUNT_IN} 拍のあと ${beats} 拍（♩= ${this.bpm}）。${this.s.syllable === "double" ? "「タカタカ」で息を止めない" : "「トー」で音を切らない"}`);
       const first = metronome.start(this.bpm, beats);
       const repStart = first + COUNT_IN * beatSec;
       const repEnd = repStart + beats * beatSec;
@@ -116,7 +119,7 @@ class TonguingTrainer implements TrainerInstance {
       this.showResult(rec, ev.reasons);
       this.renderStats();
       this.bpm = nextTempo(this.bpm, ev.pass, this.s.step, 30, this.s.maxBpm);
-      if (!(await r.sleep(1500))) break;
+      if (!(await r.sleep(ev.pass ? 1500 : 4000))) break;
     }
     metronome.stop();
     this.ctx.setStatus("停止しました");
@@ -144,12 +147,22 @@ class TonguingTrainer implements TrainerInstance {
         el("li", {}, `拍からの平均ずれ: ${rec.meanAbsErrSec === null ? "–" : fmtMs(rec.meanAbsErrSec)}`),
         ...reasons.map((x) => el("li", { class: "ng-text" }, x)),
       ),
+      rec.pass ? null : coachingBlock(tonguingTriggers(rec), "tonguing"),
     );
   }
 
   private renderStats(): void {
     replaceChildren(this.stats, renderSummaryTable(this.ctx.history.list<TonguingRecord>("tonguing").map((e) => e.data)));
   }
+}
+
+function tonguingTriggers(rec: TonguingRecord): Trigger[] {
+  const t: Trigger[] = [];
+  if (rec.count < rec.expectedCount) t.push("tonguing-few");
+  if (rec.count > rec.expectedCount) t.push("tonguing-many");
+  if (rec.cv !== null && rec.cv > 0.2) t.push("tonguing-uneven");
+  if (rec.meanAbsErrSec !== null && rec.meanAbsErrSec > (60 / rec.bpm / rec.perBeat) * 0.25) t.push("tonguing-off");
+  return t.length ? t : ["tonguing-uneven"];
 }
 
 function renderSummaryTable(recs: TonguingRecord[]): HTMLElement {
@@ -177,10 +190,20 @@ export const tonguingTrainer: TrainerModule = {
   title: "タンギング（テンポの階段）",
   summary: "決まった数の音を均等にタンギングできたらテンポが上がる",
   description:
-    "カウント 4 拍のあと、指定した拍数だけ同じ音をタンギングします。発音の数と間隔の均等さ、拍からのずれで合否を決め、合格ならテンポを上げ、不合格なら少し下げます。合格した最高テンポが記録されるので、速いパッセージに向けた到達点が見えます。",
+    "カウント 4 拍のあと、指定した拍数だけ同じ音をタンギングします。発音の数と間隔の均等さ、拍からのずれで合否を決め、合格ならテンポを上げ、不合格なら少し下げます。不合格の種類に応じて、プロのアドバイス（「タカタカ」で息を止めない、吹きたい速さで声に出して言えるか、など）を表示します。楽器を持つ前に、手のひらに向かって息だけで「トゥクトゥク」と言う練習を 30 秒しておくと効きます。",
   order: 40,
   settingsSchema: [
     { key: "target", label: "音", type: "note" },
+    {
+      key: "syllable",
+      label: "発音",
+      type: "select",
+      options: [
+        { value: "single", label: "シングル（トー・ター）" },
+        { value: "double", label: "ダブル（タカタカ）" },
+      ],
+      help: "16 分音符が速くなったらダブルへ。「トゥク」ではなく「タカ」で、「カ」でも息を出します。",
+    },
     {
       key: "perBeat",
       label: "1 拍の音数",
@@ -197,7 +220,7 @@ export const tonguingTrainer: TrainerModule = {
     { key: "step", label: "合格時の上げ幅", type: "number", min: 1, max: 20, unit: "bpm" },
     { key: "maxBpm", label: "上限テンポ", type: "number", min: 60, max: 240, unit: "♩=" },
   ],
-  defaultSettings: { target: 46, perBeat: "4", beats: 4, startBpm: 60, step: 4, maxBpm: 200 },
+  defaultSettings: { target: 46, syllable: "single", perBeat: "4", beats: 4, startBpm: 60, step: 4, maxBpm: 200 },
   create: (ctx) => new TonguingTrainer(ctx),
   renderSummary: (entries: HistoryEntry[]) => renderSummaryTable(entries.map((e) => e.data as TonguingRecord)),
 };

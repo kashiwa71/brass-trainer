@@ -23,6 +23,8 @@ export type SettingsValues = Record<string, number | string | boolean | number[]
 export interface AppSettings {
   tubaKey: TubaModel["key"];
   a4Hz: number;
+  /** 文字の大きさ。譜面台に置いて離れて見るので既定は「大」 */
+  fontScale: "normal" | "large" | "xlarge";
 }
 
 export interface TrainerContext {

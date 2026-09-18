@@ -213,3 +213,50 @@ export function table(headers: string[], rows: Child[][]): HTMLElement {
   return t;
 }
 
+
+/** 目標音に対する高低を大きく示す針（歌・ドローン合わせ用）。cents は目標からのずれ。 */
+export class PitchNeedle {
+  readonly root: HTMLElement;
+  private arrow: HTMLElement;
+  private text: HTMLElement;
+  private needle: HTMLElement;
+
+  constructor(private readonly range = 100) {
+    this.arrow = el("div", { class: "needle-arrow" }, "");
+    this.text = el("div", { class: "needle-text" }, "声を聴いています…");
+    this.needle = el("div", { class: "needle-mark" });
+    this.root = el(
+      "div",
+      { class: "needle" },
+      this.arrow,
+      el("div", { class: "needle-scale" }, el("div", { class: "needle-zone" }), el("div", { class: "needle-center" }), this.needle),
+      this.text,
+    );
+  }
+
+  update(cents: number | null, tol: number): void {
+    if (cents === null) {
+      this.arrow.textContent = "";
+      this.text.textContent = "音が聞こえません";
+      this.needle.style.left = "50%";
+      this.root.classList.remove("ok", "high", "low");
+      return;
+    }
+    const clamped = Math.max(-this.range, Math.min(this.range, cents));
+    this.needle.style.left = `${50 + (clamped / this.range) * 50}%`;
+    const ok = Math.abs(cents) <= tol;
+    this.root.classList.toggle("ok", ok);
+    this.root.classList.toggle("high", !ok && cents > 0);
+    this.root.classList.toggle("low", !ok && cents < 0);
+    if (ok) {
+      this.arrow.textContent = "●";
+      this.text.textContent = "合っています";
+    } else if (cents > 0) {
+      this.arrow.textContent = "↓";
+      this.text.textContent = `高い（${Math.round(cents)} ¢）下げる`;
+    } else {
+      this.arrow.textContent = "↑";
+      this.text.textContent = `低い（${Math.round(-cents)} ¢）上げる`;
+    }
+  }
+}

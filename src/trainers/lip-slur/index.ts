@@ -9,6 +9,8 @@ import { noteName } from "../../core/notes";
 import { harmonicSeries, fingeringLabel } from "../../core/tuba";
 import { el, replaceChildren, fmtMs, fmtPct } from "../../ui/dom";
 import { table } from "../../ui/components";
+import { adviceCard, coachingBlock } from "../../ui/advice";
+import { dailyAdvice, type Trigger } from "../../content/advice";
 import { Runner } from "../shared";
 import { evaluateSlur, SLUR_PATTERNS } from "./evaluate";
 
@@ -62,7 +64,7 @@ class LipSlurTrainer implements TrainerInstance {
     this.stage = el("div", { class: "stage" });
     this.result = el("div", { class: "result" });
     this.stats = el("div", { class: "stats" });
-    replaceChildren(this.ctx.root, this.stage, this.result, el("h3", {}, "この練習の成績"), this.stats);
+    replaceChildren(this.ctx.root, adviceCard(dailyAdvice("lip-slur"), { compact: true, label: "今日のポイント" }), this.stage, this.result, el("h3", {}, "この練習の成績"), this.stats);
     this.showSequence();
     this.renderStats();
   }
@@ -88,7 +90,7 @@ class LipSlurTrainer implements TrainerInstance {
     while (!r.isAborted) {
       this.showSequence();
       const beatSec = 60 / this.bpm;
-      this.ctx.setStatus(`カウント ${COUNT_IN} 拍のあと、1 拍 1 音でスラー（♩= ${this.bpm}）`);
+      this.ctx.setStatus(`カウント ${COUNT_IN} 拍のあと、1 拍 1 音でスラー（♩= ${this.bpm}）。舌は突かず「オ」のまま息の速さで`);
       const first = metronome.start(this.bpm, len);
       const repStart = first + COUNT_IN * beatSec;
       const repEnd = repStart + len * beatSec;
@@ -130,7 +132,7 @@ class LipSlurTrainer implements TrainerInstance {
         this.streak = 0;
         this.ctx.setStatus(`テンポを上げます: ♩= ${this.bpm}`);
       }
-      if (!(await r.sleep(1500))) break;
+      if (!(await r.sleep(ev.correct ? 1500 : 4000))) break;
     }
     metronome.stop();
     this.ctx.setStatus("停止しました");
@@ -152,12 +154,17 @@ class LipSlurTrainer implements TrainerInstance {
     if (rec.extra.length) notes.push(`途中で ${rec.extra.map((m) => noteName(m)).join(", ")} に引っかかりました`);
     if (rec.missing.length) notes.push(`${rec.missing.map((m) => noteName(m)).join(", ")} に届きませんでした`);
     if (rec.maxGapSec > 0.12) notes.push(`移り変わりでピッチが不明瞭な時間: 最大 ${fmtMs(rec.maxGapSec)}`);
+    const triggers: Trigger[] = [];
+    if (rec.extra.length) triggers.push("slur-extra");
+    if (rec.missing.length) triggers.push("slur-missing");
+    if (rec.maxGapSec > 0.12) triggers.push("slur-gap");
     replaceChildren(
       this.result,
       el("div", { class: `verdict ${rec.correct ? "ok" : "ng"}` }, rec.correct ? "成功" : "やり直し"),
       el("div", { class: "muted" }, "実際の並び:"),
       played,
       notes.length ? el("ul", { class: "detail-list" }, ...notes.map((n) => el("li", {}, n))) : null,
+      rec.correct ? null : coachingBlock(triggers.length ? triggers : ["slur-gap"], "lip-slur"),
     );
   }
 
@@ -192,7 +199,7 @@ export const lipSlurTrainer: TrainerModule = {
   title: "リップスラー",
   summary: "同じ運指で倍音を移動。オクターブ跳躍の引っかかりを判定",
   description:
-    "メトロノームのカウント 4 拍のあと、表示された音を 1 拍 1 音でスラーします。ピッチの移り変わりを追跡し、途中の倍音に引っかかったか、届かなかったか、移行中にピッチが不明瞭だった時間を判定します。連続で成功すると自動でテンポが上がります。オクターブ系のパターンを選ぶと、苦手なオクターブ跳躍を重点的に練習できます。",
+    "メトロノームのカウント 4 拍のあと、表示された音を 1 拍 1 音でスラーします。ピッチの移り変わりを追跡し、途中の倍音に引っかかったか、届かなかったか、移行中にピッチが不明瞭だった時間を判定します。失敗の種類に応じて、プロのアドバイス（「オ」の形を保つ、上行はクレシェンド、大きな跳躍は半音階で埋める、など）を表示します。連続で成功すると自動でテンポが上がります。オクターブが苦手なら、まず「隣の倍音 往復」で息の速さの感覚を作ってから「オクターブ 往復」へ進んでください。",
   order: 30,
   settingsSchema: [
     { key: "pattern", label: "パターン", type: "select", options: SLUR_PATTERNS.map((p) => ({ value: p.id, label: p.label })) },

@@ -36,15 +36,19 @@ page.on("pageerror", (e) => console.log("[pageerror]", e.message));
 await page.goto(base);
 await page.evaluate((s) => {
   const presets = {
-    "note-attack": { targets: [47], mode: "sequential", reference: false, pauseSec: 0, useLeap: false, leapFrom: 53 },
+    "note-attack": { targets: [47], mode: "sequential", reference: false, singFirst: false, pauseSec: 0, leapMode: "none", leapFrom: 53 },
+    "note-attack-sing": { targets: [47], mode: "sequential", reference: false, singFirst: true, pauseSec: 3, leapMode: "none", leapFrom: 53 },
     "attack-quality": { anyNote: false, target: 47, reference: false, stableCents: 20 },
     "lip-slur": { pattern: "oct24", valves: "0", bpm: 60, autoRamp: true, rampAfter: 2, rampStep: 4 },
-    "tonguing": { target: 46, perBeat: "4", beats: 4, startBpm: 60, step: 4, maxBpm: 200 },
+    "tonguing": { target: 46, syllable: "single", perBeat: "4", beats: 4, startBpm: 60, step: 4, maxBpm: 200 },
+    "ear-training": { targets: [47], level: "listen", anchor: 46, tolCents: 40, holdSec: 0.6, timeoutSec: 8 },
+    "drone": { target: 46, droneOctave: "1", holdSec: 4, tightCents: 10 },
   };
-  localStorage.setItem(`brass-trainer.trainer.${s}.v1`, JSON.stringify(presets[s]));
+  const trainerId = s.replace(/-sing$/, "");
+  localStorage.setItem(`brass-trainer.trainer.${trainerId}.v1`, JSON.stringify(presets[s]));
   localStorage.removeItem("brass-trainer.history.v1");
 }, scenario);
-await page.goto(`${base}#/t/${scenario}`);
+await page.goto(`${base}#/t/${scenario.replace(/-sing$/, "")}`);
 await page.getByRole("button", { name: "開始" }).click();
 
 const verdicts = [];

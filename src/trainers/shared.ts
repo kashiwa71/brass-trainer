@@ -3,6 +3,7 @@ import type { AudioEngine } from "../core/audio/engine";
 import type { Frame } from "../core/analysis/frames";
 import { OnsetDetector } from "../core/analysis/onset";
 import { hzToNote } from "../core/notes";
+import { evaluateSing, pitchClassCents, type SingMatch } from "./ear-training/evaluate";
 
 /** 停止ボタンで途中終了できる非同期ループの補助 */
 export class Runner {
@@ -17,6 +18,12 @@ export class Runner {
     this.aborted = true;
     for (const r of this.abortResolvers) r();
     this.abortResolvers = [];
+  }
+
+  /** 中断されたときに呼ぶ処理を登録する（既に中断済みなら即座に呼ぶ） */
+  onAbort(fn: () => void): void {
+    if (this.aborted) fn();
+    else this.abortResolvers.push(fn);
   }
 
   private abortPromise(): Promise<"aborted"> {
@@ -99,4 +106,49 @@ export function dominantNote(frames: Frame[], a4Hz: number): { midi: number; cen
 export function midiFloat(hz: number, a4Hz: number): number {
   const { midi, cents } = hzToNote(hz, a4Hz);
   return midi + cents / 100;
+}
+
+export interface SingGateOptions {
+  targetMidi: number;
+  a4Hz: number;
+  timeoutMs: number;
+  tolCents?: number;
+  holdSec?: number;
+  /** 表示更新用（目標からのずれ、無音なら null） */
+  onCents?: (cents: number | null) => void;
+}
+
+/**
+ * 声（またはマウスピース）で目標の音名を保てるまで待つ。
+ * 合えば matched=true、時間切れや中断なら matched=false で最後のずれを返す。
+ */
+export function singGate(runner: Runner, audio: AudioEngine, opts: SingGateOptions): Promise<SingMatch> {
+  const tol = opts.tolCents ?? 40;
+  const hold = opts.holdSec ?? 0.6;
+  const frames: Frame[] = [];
+  const startT = audio.currentTime;
+  return new Promise((resolve) => {
+    let done = false;
+    const finish = (r: SingMatch) => {
+      if (done) return;
+      done = true;
+      off();
+      clearTimeout(timer);
+      resolve(r);
+    };
+    const off = audio.onFrame((f) => {
+      frames.push(f);
+      const valid = f.hz !== null && f.db > audio.gateDb && f.clarity >= 0.5;
+      opts.onCents?.(valid ? pitchClassCents(midiFloat(f.hz as number, opts.a4Hz), opts.targetMidi) : null);
+      // 直近 2 秒だけ評価する（古い迷いは無視）
+      while (frames.length > 0 && frames[0].t < f.t - 2) frames.shift();
+      const r = evaluateSing(frames, startT, opts.targetMidi, opts.a4Hz, audio.gateDb, { tolCents: tol, holdSec: hold });
+      if (r.matched) finish({ ...r, timeToMatchSec: f.t - startT });
+    });
+    const timer = setTimeout(() => {
+      const r = evaluateSing(frames, startT, opts.targetMidi, opts.a4Hz, audio.gateDb, { tolCents: tol, holdSec: hold });
+      finish({ ...r, matched: false });
+    }, opts.timeoutMs);
+    runner.onAbort(() => finish({ matched: false, timeToMatchSec: null, cents: null, lastMidi: null }));
+  });
 }
