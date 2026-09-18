@@ -1,0 +1,10 @@
+{
+  "name": "Brass Trainer（チューバ練習）",
+  "short_name": "BrassTrainer",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#101418",
+  "theme_color": "#101418",
+  "lang": "ja",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}
