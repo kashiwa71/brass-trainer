@@ -1,0 +1,51 @@
+name: CI and Pages
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - name: Pages を有効化（未設定なら有効にする）
+        id: pages
+        if: github.event_name != 'pull_request'
+        continue-on-error: true
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    # 既定ブランチへのプッシュ時、または Actions 画面から手動実行したときに GitHub Pages に配信する
+    # （リポジトリ設定で Pages のソースを GitHub Actions にしておく）
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch))
+    needs: build
+    runs-on: ubuntu-latest
+    # 配信だけを直列化する（push と pull_request の実行が互いに打ち消し合わないように）
+    concurrency:
+      group: pages-deploy
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
