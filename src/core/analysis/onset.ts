@@ -1,7 +1,7 @@
 import type { Frame } from "./frames";
 
 /**
- * 音量の立ち上がりで発音（アタック）を検出する。
+ * 音量の立ち上がりで発音（アタック）を検出する。判定には直近約 10 ms の音量（dbFast）を使う。
  * - 無音区間の後に音量が閾値を超えた瞬間（新しい音の出だし）
  * - 音が鳴っている最中でも、短時間に音量が急に上がった瞬間（タンギングの再発音）
  */
@@ -49,7 +49,8 @@ export class OnsetDetector {
     while (this.history.length > 2 && this.history[0].t < cutoff) this.history.shift();
 
     let onset = false;
-    const above = frame.db > gateDb;
+    const level = frame.dbFast;
+    const above = level > gateDb;
     if (!this.sounding && above) {
       onset = true;
     } else if (this.sounding && above) {
@@ -58,9 +59,9 @@ export class OnsetDetector {
       for (const h of this.history) {
         if (h.t < frame.t - jumpWindowSec) continue;
         if (h.t >= frame.t) break;
-        minDb = Math.min(minDb, h.db);
+        minDb = Math.min(minDb, h.dbFast);
       }
-      if (minDb !== Infinity && frame.db - minDb >= jumpDb) onset = true;
+      if (minDb !== Infinity && level - minDb >= jumpDb) onset = true;
     }
     this.sounding = above;
 

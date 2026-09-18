@@ -67,9 +67,10 @@ self.onmessage = (ev: MessageEvent<WorkerInMsg>) => {
       const win = new Float32Array(WINDOW);
       for (let k = 0; k < WINDOW; k++) win[k] = ring[(ringPos + k) % WINDOW];
       const db = rmsDb(win);
+      const dbFast = rmsDb(win.subarray(WINDOW - HOP));
       const res = db > -70 ? yin(win, { sampleRate: sr, minHz, maxHz }) : { hz: null, clarity: 0 };
       const t = lastChunkT + samplesSinceChunkStart / (sr * decim);
-      const frame: Frame = { t, hz: res.hz, db, clarity: res.clarity };
+      const frame: Frame = { t, hz: res.hz, db, dbFast, clarity: res.clarity };
       (self as unknown as Worker).postMessage(frame);
     }
   }

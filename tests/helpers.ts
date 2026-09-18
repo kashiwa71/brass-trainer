@@ -21,6 +21,8 @@ export interface FrameSpec {
   midi: number | null;
   cents?: number;
   db?: number;
+  /** 省略時は db と同じ */
+  dbFast?: number;
 }
 
 /** 10 ms 間隔のフレーム列を仕様から作る */
@@ -29,7 +31,8 @@ export function frames(specs: FrameSpec[], a4Hz = 442, hop = 0.01): Frame[] {
   for (const s of specs) {
     for (let t = s.from; t < s.to - 1e-9; t += hop) {
       const hz = s.midi === null ? null : midiToHz(s.midi + (s.cents ?? 0) / 100, a4Hz);
-      out.push({ t: Number(t.toFixed(4)), hz, db: s.db ?? (s.midi === null ? -80 : -20), clarity: s.midi === null ? 0 : 0.95 });
+      const db = s.db ?? (s.midi === null ? -80 : -20);
+      out.push({ t: Number(t.toFixed(4)), hz, db, dbFast: s.dbFast ?? db, clarity: s.midi === null ? 0 : 0.95 });
     }
   }
   return out;

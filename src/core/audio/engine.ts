@@ -78,7 +78,7 @@ export class AudioEngine {
   calibrate(seconds = 1): Promise<number> {
     return new Promise((resolve) => {
       const dbs: number[] = [];
-      const off = this.onFrame((f) => dbs.push(f.db));
+      const off = this.onFrame((f) => dbs.push(f.dbFast));
       setTimeout(() => {
         off();
         if (dbs.length) {

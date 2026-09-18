@@ -88,7 +88,7 @@ class TonguingTrainer implements TrainerInstance {
         const delay = Math.max(0, (b.time - audio.currentTime) * 1000);
         setTimeout(() => {
           if (k < 0) this.ctx.setStatus(`カウント ${COUNT_IN + k + 1}`);
-          else this.ctx.setStatus(`${k + 1} 拍目`);
+          else if (k < beats) this.ctx.setStatus(`${k + 1} 拍目`);
         }, delay);
       });
       const frames = await r.collectUntil(audio, repEnd + 0.2, repStart - 0.3);
