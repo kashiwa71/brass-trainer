@@ -53,3 +53,21 @@ src/
 public/               AudioWorklet、PWA 用ファイル
 tests/                単体テスト
 ```
+
+## 楽器なしで動作確認する（e2e）
+
+合成したチューバ音を Chromium の疑似マイクとして流し、各モードの判定が動くことを確かめられます。
+
+```bash
+python3 e2e/make-wavs.py                 # 合成音を生成
+npm run build && npx vite preview --port 4173 &
+npm run e2e -- note-attack               # note-attack | attack-quality | lip-slur | tonguing
+```
+
+`playwright-core` が Chromium を見つけられない場合は `CHROME=/path/to/chrome` を指定してください。
+
+## 公開（GitHub Pages）
+
+1. リポジトリの Settings → Pages で Source を「GitHub Actions」にする
+2. 既定ブランチ（main）にマージするか、Actions の「CI and Pages」を手動実行する
+3. 表示された URL をスマホで開き、「ホーム画面に追加」するとアプリとして使える
