@@ -7,6 +7,8 @@ import type { HistoryEntry } from "../../core/history";
 import { noteName } from "../../core/notes";
 import { el, replaceChildren, fmtCents, fmtMs } from "../../ui/dom";
 import { noteCard, pitchGraph, table } from "../../ui/components";
+import { adviceCard, coachingBlock } from "../../ui/advice";
+import { dailyAdvice, type Trigger } from "../../content/advice";
 import { Runner } from "../shared";
 import { evaluateAttack, type AttackQuality } from "./evaluate";
 
@@ -44,7 +46,7 @@ class AttackQualityTrainer implements TrainerInstance {
     this.stage = el("div", { class: "stage" }, el("p", { class: "muted" }, "「開始」を押したら、好きなタイミングで音を出してください。1 音ごとに採点します。"));
     this.result = el("div", { class: "result" });
     this.stats = el("div", { class: "stats" });
-    replaceChildren(this.ctx.root, this.stage, this.result, el("h3", {}, "この練習の成績"), this.stats);
+    replaceChildren(this.ctx.root, adviceCard(dailyAdvice("attack"), { compact: true, label: "今日のポイント" }), this.stage, this.result, el("h3", {}, "この練習の成績"), this.stats);
     this.renderStats();
   }
 
@@ -60,7 +62,7 @@ class AttackQualityTrainer implements TrainerInstance {
         await tone.play(target, 1.0, app.a4Hz);
         if (!(await r.sleep(400))) break;
       }
-      this.ctx.setStatus("音を出してください（出だしを採点します）");
+      this.ctx.setStatus("唇を震わせる瞬間を決めて、音を出す");
       this.stage.classList.add("go");
       const onset = await r.waitForOnset(audio, { timeoutMs: 20000 });
       this.stage.classList.remove("go");
@@ -85,9 +87,9 @@ class AttackQualityTrainer implements TrainerInstance {
       this.ctx.history.add("attack-quality", rec);
       this.showResult(q, rec, frames, onset);
       this.renderStats();
-      // 音が止まるまで待ってから次へ
-      while (!r.isAborted && audio.latest && audio.latest.db > audio.gateDb) await r.sleep(100);
-      if (!(await r.sleep(600))) break;
+      // 音が止まるまで待ってから次へ（減点があるときはアドバイスを読む時間を置く）
+      while (!r.isAborted && audio.latest && audio.latest.dbFast > audio.gateDb) await r.sleep(100);
+      if (!(await r.sleep(q.score >= 80 ? 600 : 2500))) break;
     }
     this.ctx.setStatus("停止しました");
   }
@@ -117,6 +119,13 @@ class AttackQualityTrainer implements TrainerInstance {
     const penalties = q.penalties.length
       ? el("ul", { class: "penalties" }, ...q.penalties.map((p) => el("li", {}, `−${p.points}: ${p.label}`)))
       : el("p", { class: "ok-text" }, "減点なし。きれいな出だしです。");
+    const triggers: Trigger[] = [];
+    if (q.glitch) triggers.push("glitch");
+    if (q.initialCents !== null && q.initialCents < -30 && !q.glitch) triggers.push("scoop");
+    if (q.initialCents !== null && q.initialCents > 30 && !q.glitch) triggers.push("from-above");
+    if (q.stabilizeSec === null || q.stabilizeSec > 0.12) triggers.push("unstable");
+    if (q.riseSec !== null && q.riseSec > 0.12) triggers.push("slow-rise");
+    const coach = q.score < 80 ? coachingBlock(triggers.length ? triggers : ["unstable"], "attack") : null;
     replaceChildren(
       this.result,
       el("div", { class: `verdict ${cls}` }, `${q.score} 点`),
@@ -124,6 +133,7 @@ class AttackQualityTrainer implements TrainerInstance {
       el("small", { class: "muted" }, "黄: ピッチ（中央の線が目標音、帯は ±25 セント、縦線は 100 ms ごと）、青: 音量"),
       details,
       penalties,
+      coach,
     );
   }
 
@@ -160,7 +170,7 @@ export const attackQualityTrainer: TrainerModule = {
   title: "出だし",
   summary: "音の出だしがまっすぐ始まるかを 100 点満点で採点",
   description:
-    "1 音ずつ吹くと、発音から 600 ms のピッチと音量の推移を解析して採点します。減点の対象は「ピッチが安定するまでの時間」「下からのしゃくり上げ・上からの入り」「別の倍音への引っかかり」「音量の立ち上がりの遅さ」です。グラフで出だしの形を確認しながら、まっすぐ入る感覚を作ります。",
+    "1 音ずつ吹くと、発音から 600 ms のピッチと音量の推移を解析して採点します。減点の対象は「ピッチが安定するまでの時間」「下からのしゃくり上げ・上からの入り」「別の倍音への引っかかり」「音量の立ち上がりの遅さ」です。減点の種類に応じて、プロの指導者のアドバイス（「唇を震わせる瞬間を決める」「息だけで吹くエアー・アタック」など）を表示します。楽器を持つ前に、息だけで同じフレーズを吹いておくと効果が上がります。",
   order: 20,
   settingsSchema: [
     { key: "anyNote", label: "どの音でも判定する", type: "boolean", help: "オンにすると目標音を決めずに採点します。" },

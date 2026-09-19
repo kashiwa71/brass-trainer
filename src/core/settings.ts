@@ -21,7 +21,7 @@ function write(key: string, value: unknown): void {
   }
 }
 
-export const DEFAULT_APP_SETTINGS: AppSettings = { tubaKey: "Bb", a4Hz: DEFAULT_A4_HZ };
+export const DEFAULT_APP_SETTINGS: AppSettings = { tubaKey: "Bb", a4Hz: DEFAULT_A4_HZ, fontScale: "large" };
 
 export function loadAppSettings(): AppSettings {
   return { ...DEFAULT_APP_SETTINGS, ...(read<Partial<AppSettings>>(APP_KEY) ?? {}) };

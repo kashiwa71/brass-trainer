@@ -85,3 +85,37 @@ notes = []
 for _ in range(120):
     notes += tone(midi_hz(46), 0.2) + silence(0.05)
 save("tonguing.wav", silence(2.0) + notes)
+
+# 耳トレ: 2 s 無音 → 声（H3 付近を探ってから H3 に落ち着く）を 2.5 s、を繰り返す
+def voice(midi_target, sec, wander_cents=-120, wander_sec=0.5, amp=0.25):
+    n = int(sec * SR)
+    out = []
+    ph = 0.0
+    for i in range(n):
+        t = i / SR
+        c = wander_cents * max(0.0, 1 - t / wander_sec)
+        f = midi_hz(midi_target) * 2 ** (c / 1200)
+        ph += 2 * math.pi * f / SR
+        env = min(1.0, t / 0.05) * (1.0 if t < sec - 0.1 else max(0, (sec - t) / 0.1))
+        v = sum(a * math.sin(ph * (k + 1)) for k, a in enumerate((1, 0.5, 0.3, 0.15)))
+        out.append(amp * env * v / 1.95)
+    return out
+
+
+save("ear-training.wav", silence(3.5) + (voice(59, 2.5) + silence(3.0)) * 6)
+# 音当て（歌ってから吹く）: 声で H3 → 間 → チューバで H2
+save("note-attack-sing.wav", (silence(2.0) + voice(59, 1.5, wander_cents=-60, wander_sec=0.3) + silence(3.5) + tone(midi_hz(47), 1.0) + silence(2.0)) * 3)
+# ドローン合わせ: 2 s 無音 → B2 を 12 セント高めで 5 s 伸ばす → 無音
+def held(midi, sec, cents, amp=0.3):
+    n = int(sec * SR)
+    out = []
+    f = midi_hz(midi) * 2 ** (cents / 1200)
+    for i in range(n):
+        t = i / SR
+        env = min(1.0, t / 0.02) * (1.0 if t < sec - 0.05 else max(0, (sec - t) / 0.05))
+        v = sum(a * math.sin(2 * math.pi * f * (k + 1) * t) for k, a in enumerate((1, 0.7, 0.5, 0.3)))
+        out.append(amp * env * v / 2.5)
+    return out
+
+
+save("drone.wav", silence(2.0) + (held(46, 5.0, 12) + silence(2.0)) * 4)

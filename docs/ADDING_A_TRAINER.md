@@ -29,9 +29,17 @@
 - `ctx.root` — トレーナーが自由に描画してよい領域
 - `ctx.setStatus(text)` — 画面上部の案内文
 
+## アドバイスの表示
+
+- `adviceCard(dailyAdvice("<topic>"), { compact: true, label: "今日のポイント" })` を `mount()` で先頭に置く
+- 失敗したら `coachingBlock([<trigger>...], "<topic>")` を結果の下に置く。トリガーと分野は `src/content/advice.ts` で定義
+- 新しい状況を扱うときは `Trigger` に値を足し、該当するアドバイスの `triggers` に加える
+
 ## よく使う部品
 
 - `Runner`（`src/trainers/shared.ts`）: 停止ボタンで中断できる `sleep` / `waitForOnset` / `collectUntil`
+- `singGate`（`src/trainers/shared.ts`）: 声やバズが目標の音名に収まるまで待つ（オクターブは問わない）
+- `PitchNeedle`（`src/ui/components.ts`）: 高い・低いを大きく示す針
 - `OnsetDetector`（`src/core/analysis/onset.ts`）: 発音の検出
 - `segmentNotes`（`src/core/analysis/segments.ts`）: フレーム列を「音」の区間に分ける（スラー向け）
 - `judgeAttack` / `evaluateAttack` / `evaluateSlur` / `evaluateTonguing`: 既存の判定関数。組み合わせて新しい練習を作れる

@@ -159,3 +159,22 @@ describe("tonguing evaluateTonguing", () => {
     expect(nextTempo(199, true, 4, 40, 200)).toBe(200);
   });
 });
+
+import { randomLeapFrom } from "../src/trainers/note-attack/index";
+
+describe("note-attack randomLeapFrom", () => {
+  it("目標と異なり、完全 5 度以内、音域内の音を返す", () => {
+    let seed = 7;
+    const rnd = () => {
+      seed = (seed * 16807) % 2147483647;
+      return seed / 2147483647;
+    };
+    for (let i = 0; i < 50; i++) {
+      const m = randomLeapFrom(47, 40, 50, rnd);
+      expect(m).not.toBe(47);
+      expect(Math.abs(m - 47)).toBeLessThanOrEqual(7);
+      expect(m).toBeGreaterThanOrEqual(40);
+      expect(m).toBeLessThanOrEqual(50);
+    }
+  });
+});

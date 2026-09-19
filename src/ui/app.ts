@@ -1,39 +1,44 @@
 /**
  * 画面の骨組み。ハッシュでページを切り替える。
- *  #/            ホーム（トレーナー一覧と成績の要約）
+ *  #/            ホーム（トレーナー一覧、今日のポイント、成績の要約）
  *  #/t/<id>      練習画面
- *  #/settings    全体設定（チューバの調、基準ピッチ、履歴）
+ *  #/advice      アドバイス集
+ *  #/settings    全体設定（チューバの調、基準ピッチ、文字の大きさ、履歴）
+ *
+ * 譜面台に置いたスマホを離れて見る前提: 案内文・音名・判定を大きく、開始/停止は画面下に固定、
+ * 練習中は説明や設定を隠し、画面は消灯させない。
  */
 import { AudioEngine } from "../core/audio/engine";
 import { ToneGenerator } from "../core/audio/tone";
 import { Metronome } from "../core/audio/metronome";
 import { HistoryStore } from "../core/history";
 import { TUBA_MODELS } from "../core/tuba";
+import { WakeLock } from "../core/wakelock";
 import type { TrainerRegistry, TrainerInstance, TrainerModule, SettingsValues, AppSettings } from "../core/trainer";
 import { loadAppSettings, saveAppSettings, loadTrainerSettings, saveTrainerSettings } from "../core/settings";
+import { dailyAdvice, type Topic } from "../content/advice";
 import { el, replaceChildren } from "./dom";
 import { settingsForm, TunerStrip } from "./components";
+import { adviceCard, advicePage } from "./advice";
 
 export class App {
   private readonly audio = new AudioEngine();
   private readonly history = new HistoryStore();
+  private readonly wakeLock = new WakeLock();
   private appSettings: AppSettings = loadAppSettings();
   private main: HTMLElement;
   private current: { module: TrainerModule; instance: TrainerInstance; cleanup: () => void } | null = null;
 
-  constructor(
-    root: HTMLElement,
-    private readonly registry: TrainerRegistry,
-  ) {
+  constructor(root: HTMLElement, private readonly registry: TrainerRegistry) {
     this.main = el("main", { class: "main" });
     const header = el(
       "header",
       { class: "header" },
       el("a", { href: "#/", class: "brand" }, "Brass Trainer"),
-      el("span", { class: "muted small" }, "チューバ練習"),
-      el("a", { href: "#/settings", class: "gear", "aria-label": "設定" }, "⚙"),
+      el("div", { class: "header-links" }, el("a", { href: "#/advice" }, "アドバイス集"), el("a", { href: "#/settings", "aria-label": "設定" }, "設定 ⚙")),
     );
     replaceChildren(root, header, this.main);
+    this.applyScale();
     window.addEventListener("hashchange", () => this.route());
     this.route();
   }
@@ -42,8 +47,13 @@ export class App {
     return TUBA_MODELS[this.appSettings.tubaKey];
   }
 
+  private applyScale(): void {
+    document.documentElement.dataset.scale = this.appSettings.fontScale;
+  }
+
   private route(): void {
     this.leaveTrainer();
+    window.scrollTo(0, 0);
     const hash = location.hash || "#/";
     const m = /^#\/t\/([\w-]+)$/.exec(hash);
     if (m) {
@@ -51,6 +61,11 @@ export class App {
       if (mod) return this.renderTrainer(mod);
     }
     if (hash === "#/settings") return this.renderSettings();
+    if (hash.startsWith("#/advice")) {
+      const topic = /topic=([\w-]+)/.exec(hash)?.[1] as Topic | undefined;
+      replaceChildren(this.main, el("h2", {}, "アドバイス集"), advicePage(topic ?? "all"));
+      return;
+    }
     this.renderHome();
   }
 
@@ -60,6 +75,7 @@ export class App {
     this.current.instance.dispose();
     this.current.cleanup();
     this.current = null;
+    void this.wakeLock.release();
   }
 
   private renderHome(): void {
@@ -80,7 +96,8 @@ export class App {
     }
     replaceChildren(
       this.main,
-      el("p", { class: "muted" }, `使用楽器: ${this.tuba.label} ・ A = ${this.appSettings.a4Hz} Hz ・ 音名はドイツ音名（B = シ♭、H = シ）`),
+      adviceCard(dailyAdvice("general"), { compact: true, label: "今日のポイント" }),
+      el("p", { class: "muted small" }, `使用楽器: ${this.tuba.label} ・ A = ${this.appSettings.a4Hz} Hz ・ 音名はドイツ音名（B = シ♭、H = シ）。音を取るのが苦手なら、上から順に「耳トレ」→「ドローン合わせ」→「音当て」の順で進めてください。`),
       list,
     );
   }
@@ -92,17 +109,21 @@ export class App {
       if (m.key === this.appSettings.tubaKey) o.selected = true;
       tubaSel.appendChild(o);
     }
-    tubaSel.addEventListener("change", () => {
-      this.appSettings = { ...this.appSettings, tubaKey: tubaSel.value as AppSettings["tubaKey"] };
-      saveAppSettings(this.appSettings);
-    });
+    tubaSel.addEventListener("change", () => this.updateApp({ tubaKey: tubaSel.value as AppSettings["tubaKey"] }));
     const a4 = el("input", { type: "number", min: 415, max: 466, value: String(this.appSettings.a4Hz) });
     a4.addEventListener("change", () => {
       const v = Number(a4.value);
-      if (v >= 415 && v <= 466) {
-        this.appSettings = { ...this.appSettings, a4Hz: v };
-        saveAppSettings(this.appSettings);
-      }
+      if (v >= 415 && v <= 466) this.updateApp({ a4Hz: v });
+    });
+    const scaleSel = el("select");
+    for (const [v, label] of [["normal", "標準"], ["large", "大（既定）"], ["xlarge", "特大"]]) {
+      const o = el("option", { value: v }, label);
+      if (v === this.appSettings.fontScale) o.selected = true;
+      scaleSel.appendChild(o);
+    }
+    scaleSel.addEventListener("change", () => {
+      this.updateApp({ fontScale: scaleSel.value as AppSettings["fontScale"] });
+      this.applyScale();
     });
     const exportBtn = el("button", { class: "btn", type: "button" }, "履歴を JSON で書き出す");
     exportBtn.addEventListener("click", () => {
@@ -117,9 +138,12 @@ export class App {
     replaceChildren(
       this.main,
       el("h2", {}, "設定"),
-      el("div", { class: "settings" },
+      el(
+        "div",
+        { class: "settings" },
         el("label", { class: "setting-row" }, el("span", { class: "setting-label" }, "チューバの調"), tubaSel),
         el("label", { class: "setting-row" }, el("span", { class: "setting-label" }, "基準ピッチ A"), el("span", { class: "setting-control" }, a4, el("span", { class: "unit" }, "Hz"))),
+        el("label", { class: "setting-row" }, el("span", { class: "setting-label" }, "文字の大きさ"), scaleSel),
       ),
       el("h3", {}, "履歴"),
       el("div", { class: "row" }, exportBtn, clearBtn),
@@ -127,13 +151,19 @@ export class App {
     );
   }
 
+  private updateApp(patch: Partial<AppSettings>): void {
+    this.appSettings = { ...this.appSettings, ...patch };
+    saveAppSettings(this.appSettings);
+  }
+
   private renderTrainer(mod: TrainerModule): void {
     let settings: SettingsValues = loadTrainerSettings(mod.id, mod.defaultSettings);
-    const status = el("div", { class: "status" }, "マイクを使います。「開始」を押してください。");
+    const status = el("div", { class: "status" }, "「開始」を押してください（マイクを使います）");
     const tunerStrip = new TunerStrip(this.appSettings.a4Hz);
     const trainerRoot = el("div", { class: "trainer-root" });
     const startBtn = el("button", { class: "btn primary big", type: "button" }, "開始");
     const stopBtn = el("button", { class: "btn big", type: "button", disabled: true }, "停止");
+    const page = el("div", { class: "trainer-page" });
 
     const buildInstance = (): TrainerInstance => {
       const instance = mod.create({
@@ -151,12 +181,12 @@ export class App {
       return instance;
     };
 
+    let running = false;
     const settingsBox = el("details", { class: "settings-box" }, el("summary", {}, "設定"));
     const rebuildSettings = () => {
       const form = settingsForm(mod.settingsSchema, settings, this.tuba, (v) => {
         settings = v;
         saveTrainerSettings(mod.id, v);
-        // 設定は次の開始時に反映する（実行中は現在の回を続ける）
         if (this.current && !running) {
           this.current.instance.dispose();
           this.current.instance = buildInstance();
@@ -166,7 +196,6 @@ export class App {
     };
     rebuildSettings();
 
-    let running = false;
     const offFrame = this.audio.onFrame((f) => tunerStrip.update(f));
     const instance = buildInstance();
     this.current = { module: mod, instance, cleanup: () => offFrame() };
@@ -187,28 +216,31 @@ export class App {
         return;
       }
       running = true;
+      page.classList.add("running");
       stopBtn.disabled = false;
+      void this.wakeLock.acquire();
       try {
         await this.current.instance.start();
       } finally {
         running = false;
+        page.classList.remove("running");
         startBtn.disabled = false;
         stopBtn.disabled = true;
+        void this.wakeLock.release();
       }
     });
-    stopBtn.addEventListener("click", () => {
-      this.current?.instance.stop();
-    });
+    stopBtn.addEventListener("click", () => this.current?.instance.stop());
 
     replaceChildren(
-      this.main,
+      page,
       el("div", { class: "trainer-head" }, el("a", { href: "#/", class: "back" }, "← 一覧"), el("h2", {}, mod.title)),
       el("details", { class: "desc" }, el("summary", {}, "この練習について"), el("p", {}, mod.description)),
       settingsBox,
       tunerStrip.root,
       status,
-      el("div", { class: "controls" }, startBtn, stopBtn),
       trainerRoot,
+      el("div", { class: "controls" }, startBtn, stopBtn),
     );
+    replaceChildren(this.main, page);
   }
 }
