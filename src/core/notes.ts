@@ -81,3 +81,29 @@ export function parseNoteName(text: string): number | null {
 export function clampCents(c: number, limit = 50): number {
   return Math.max(-limit, Math.min(limit, c));
 }
+
+/** 五線上の書き方。step は幹音（0 = C … 6 = H）、accidental は -1 = ♭、0 = なし。 */
+export interface Spelling {
+  step: number;
+  octave: number;
+  accidental: -1 | 0;
+}
+
+// noteName の既定（フラット系）と同じ綴りにする: Des, Es, Ges, As, B
+const FLAT_SPELLING: [number, -1 | 0][] = [
+  [0, 0], [1, -1], [1, 0], [2, -1], [2, 0], [3, 0], [4, -1], [4, 0], [5, -1], [5, 0], [6, -1], [6, 0],
+];
+
+export function spell(midi: number): Spelling {
+  const [step, accidental] = FLAT_SPELLING[pitchClassOf(midi)];
+  return { step, octave: octaveOf(midi), accidental };
+}
+
+/**
+ * ヘ音記号の五線上の位置。第 3 線（D3）を 0 とし、線と間を 1 ずつ数える（上が正）。
+ * 五線の 5 本の線は -4, -2, 0, 2, 4。
+ */
+export function bassClefPosition(midi: number): number {
+  const { step, octave } = spell(midi);
+  return octave * 7 + step - (3 * 7 + 1);
+}

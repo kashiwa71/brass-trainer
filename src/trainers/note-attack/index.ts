@@ -8,7 +8,8 @@ import type { HistoryEntry } from "../../core/history";
 import { noteName } from "../../core/notes";
 import { fingeringsFor, neighborPartials } from "../../core/tuba";
 import { el, replaceChildren, fmtCents, fmtPct } from "../../ui/dom";
-import { noteCard, table, PitchNeedle } from "../../ui/components";
+import { noteCard, noteDisplay, table, PitchNeedle } from "../../ui/components";
+import { staff } from "../../ui/staff";
 import { adviceCard, coachingBlock } from "../../ui/advice";
 import { dailyAdvice } from "../../content/advice";
 import { Runner, singGate } from "../shared";
@@ -88,7 +89,7 @@ class NoteAttackTrainer implements TrainerInstance {
       if (this.s.singFirst) {
         this.ctx.setStatus(`${noteName(target)} を声で歌ってください（高さは自由）`);
         const stageNote = this.stage.querySelector(".note-card");
-        replaceChildren(this.stage, stageNote ?? el("div", { class: "note-big" }, noteName(target)), this.needle.root);
+        replaceChildren(this.stage, stageNote ?? noteDisplay(target), this.needle.root);
         this.stage.classList.add("go");
         const m = await singGate(r, audio, { targetMidi: target, a4Hz: app.a4Hz, timeoutMs: 8000, onCents: (c) => this.needle.update(c, 40) });
         this.stage.classList.remove("go");
@@ -152,7 +153,7 @@ class NoteAttackTrainer implements TrainerInstance {
       nb.below !== null ? el("span", {}, `下の倍音 ${noteName(nb.below)}`) : null,
       nb.above !== null ? el("span", {}, `上の倍音 ${noteName(nb.above)}`) : null,
     );
-    replaceChildren(this.stage, leapFrom !== null ? el("div", { class: "leap-from" }, `${noteName(leapFrom)} から`) : null, noteCard(tuba, target, [hint]));
+    replaceChildren(this.stage, leapFrom !== null ? el("div", { class: "leap-from" }, `${noteName(leapFrom)} から`) : null, noteCard(tuba, target, [hint], { from: leapFrom }));
     replaceChildren(this.result);
   }
 
@@ -170,6 +171,13 @@ class NoteAttackTrainer implements TrainerInstance {
     replaceChildren(
       this.result,
       el("div", { class: "verdict ng" }, `外れ: ${noteName(r.landedMidi)}`, el("small", {}, `${Math.abs(diff)} 半音${below ? "下" : "上"}に乗った`)),
+      staff(
+        [
+          { midi: r.targetMidi, cls: "ok", label: "目標" },
+          { midi: r.landedMidi, cls: "ng", label: "実際" },
+        ],
+        { className: "medium" },
+      ),
       coachingBlock(below ? ["missed-below"] : ["missed-above"], "pitch-accuracy"),
     );
   }

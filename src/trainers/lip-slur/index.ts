@@ -9,6 +9,7 @@ import { noteName } from "../../core/notes";
 import { harmonicSeries, fingeringLabel } from "../../core/tuba";
 import { el, replaceChildren, fmtMs, fmtPct } from "../../ui/dom";
 import { table } from "../../ui/components";
+import { staff } from "../../ui/staff";
 import { adviceCard, coachingBlock } from "../../ui/advice";
 import { dailyAdvice, type Trigger } from "../../content/advice";
 import { Runner } from "../shared";
@@ -73,7 +74,8 @@ class LipSlurTrainer implements TrainerInstance {
     const seq = this.expected();
     replaceChildren(
       this.stage,
-      el("div", { class: "seq" }, ...seq.map((m) => el("span", { class: "seq-note" }, noteName(m)))),
+      staff(seq.map((midi) => ({ midi }))),
+      el("div", { class: "seq" }, ...seq.map((m, i) => el("span", { class: "seq-note", "data-i": i }, noteName(m)))),
       el("div", { class: "note-sub" }, `運指 ${fingeringLabel({ valves: parseValves(this.s.valves), partial: 0, preferred: true })} ・ 1 拍 1 音 ・ ♩= ${this.bpm}`),
     );
   }
@@ -97,10 +99,10 @@ class LipSlurTrainer implements TrainerInstance {
       // 表示: 拍に合わせて音を光らせる
       const offBeat = metronome.onBeat((b) => {
         const k = b.index - COUNT_IN;
-        const notes = this.stage.querySelectorAll<HTMLElement>(".seq-note");
+        const notes = this.stage.querySelectorAll<Element>(".seq-note, .staff-note");
         const delay = Math.max(0, (b.time - audio.currentTime) * 1000);
         setTimeout(() => {
-          notes.forEach((n, i) => n.classList.toggle("active", i === k));
+          notes.forEach((n) => n.classList.toggle("active", Number(n.getAttribute("data-i")) === k));
           if (k < 0) this.ctx.setStatus(`カウント ${COUNT_IN + k + 1}`);
         }, delay);
       });
@@ -149,7 +151,12 @@ class LipSlurTrainer implements TrainerInstance {
   }
 
   private showResult(rec: LipSlurRecord): void {
-    const played = el("div", { class: "seq small" }, ...rec.played.map((m) => el("span", { class: `seq-note ${rec.extra.includes(m) ? "extra" : ""}` }, noteName(m))));
+    const played = el(
+      "div",
+      {},
+      rec.played.length ? staff(rec.played.map((midi) => ({ midi, cls: rec.extra.includes(midi) ? "ng" : "" })), { className: "medium" }) : null,
+      el("div", { class: "seq small" }, ...rec.played.map((m) => el("span", { class: `seq-note ${rec.extra.includes(m) ? "extra" : ""}` }, noteName(m)))),
+    );
     const notes: string[] = [];
     if (rec.extra.length) notes.push(`途中で ${rec.extra.map((m) => noteName(m)).join(", ")} に引っかかりました`);
     if (rec.missing.length) notes.push(`${rec.missing.map((m) => noteName(m)).join(", ")} に届きませんでした`);

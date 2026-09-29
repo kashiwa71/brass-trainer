@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { midiToHz, hzToNote, noteName, parseNoteName, centsBetween } from "../src/core/notes";
+import { midiToHz, hzToNote, noteName, parseNoteName, centsBetween, spell, bassClefPosition } from "../src/core/notes";
 import { TUBA_MODELS, fingeringsFor, fingeringLabel, neighborPartials, harmonicSeries, partialMidi } from "../src/core/tuba";
 
 describe("notes", () => {
@@ -18,6 +18,23 @@ describe("notes", () => {
     expect(noteName(53)).toBe("F3");
     expect(noteName(51)).toBe("Es3");
     expect(noteName(60, { style: "english" })).toBe("C4");
+  });
+  it("五線上の綴りは音名表示と同じフラット系にする", () => {
+    expect(spell(46)).toEqual({ step: 6, octave: 2, accidental: -1 }); // B2 = H の線に ♭
+    expect(spell(47)).toEqual({ step: 6, octave: 2, accidental: 0 }); // H2
+    expect(spell(51)).toEqual({ step: 2, octave: 3, accidental: -1 }); // Es3
+    expect(spell(49)).toEqual({ step: 1, octave: 3, accidental: -1 }); // Des3
+  });
+  it("ヘ音記号の位置: 第 3 線 D3 = 0、線と間を 1 ずつ数える", () => {
+    expect(bassClefPosition(50)).toBe(0); // D3 第 3 線
+    expect(bassClefPosition(43)).toBe(-4); // G2 第 1 線
+    expect(bassClefPosition(57)).toBe(4); // A3 第 5 線
+    expect(bassClefPosition(53)).toBe(2); // F3 第 4 線（ヘ音記号の点の間）
+    expect(bassClefPosition(47)).toBe(-2); // H2 第 2 線
+    expect(bassClefPosition(46)).toBe(-2); // B2 も同じ線（♭ が付く）
+    expect(bassClefPosition(40)).toBe(-6); // E2 下第 1 加線
+    expect(bassClefPosition(60)).toBe(6); // C4 上第 1 加線
+    expect(bassClefPosition(26)).toBe(-14); // D1 下第 5 加線
   });
   it("音名文字列を解釈できる", () => {
     expect(parseNoteName("H2")).toBe(47);
