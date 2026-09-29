@@ -7,7 +7,7 @@ import type { TrainerModule, TrainerContext, TrainerInstance } from "../../core/
 import type { HistoryEntry } from "../../core/history";
 import { noteName } from "../../core/notes";
 import { el, replaceChildren, fmtCents, fmtPct } from "../../ui/dom";
-import { PitchNeedle, table } from "../../ui/components";
+import { PitchNeedle, noteDisplay, table } from "../../ui/components";
 import { adviceCard, coachingBlock } from "../../ui/advice";
 import { dailyAdvice } from "../../content/advice";
 import { Runner, singGate } from "../shared";
@@ -60,7 +60,7 @@ class EarTrainer implements TrainerInstance {
     while (!r.isAborted) {
       const target = targets[this.index++ % targets.length];
       const level = this.s.level;
-      replaceChildren(this.stage, el("div", { class: "note-big" }, noteName(target)), el("div", { class: "note-sub" }, "この音名を歌う（高さは自由）"));
+      replaceChildren(this.stage, noteDisplay(target), el("div", { class: "note-sub" }, "この音名を歌う（高さは自由）"));
       replaceChildren(this.result);
 
       if (level === "listen" || (level === "recall" && !this.heardTarget.has(target))) {
@@ -77,7 +77,7 @@ class EarTrainer implements TrainerInstance {
 
       this.ctx.setStatus(`${noteName(target)} を歌ってください（${this.s.holdSec} 秒保つ）`);
       this.stage.classList.add("go");
-      replaceChildren(this.stage, el("div", { class: "note-big" }, noteName(target)), this.needle.root);
+      replaceChildren(this.stage, noteDisplay(target), this.needle.root);
       const m = await singGate(r, audio, {
         targetMidi: target,
         a4Hz: app.a4Hz,

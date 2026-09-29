@@ -164,3 +164,23 @@ details[open] > summary { margin-bottom: 0.4rem; }
   .controls { padding-top: 0.4rem; }
   .main { padding-bottom: 5.5rem; }
 }
+
+/* 五線譜（ヘ音記号）。--staff-u は SVG の 1 単位の大きさ（線の間隔 = 10 単位）。 */
+:root { --staff-u: 0.14em; }
+.staff { display: block; max-width: 100%; height: auto; color: var(--text); overflow: visible; }
+.staff-lines line, .staff-ledger { stroke: currentColor; stroke-width: 1.1; }
+.staff-ledger { stroke-width: 1.4; }
+.staff-clef, .staff-head, .staff-acc { fill: currentColor; stroke: currentColor; stroke-width: 0; }
+.staff-acc path[fill="none"] { stroke: currentColor; }
+.staff-label { fill: var(--muted); font-size: 8.5px; font-weight: 700; }
+.staff-note.ok { color: var(--ok); }
+.staff-note.active { color: var(--accent); }
+.staff-note.faded { color: var(--muted); }
+.staff-note.ng { color: var(--ng); }
+.staff-note .staff-ledger { stroke: currentColor; }
+.staff-note { transition: color 80ms; }
+.staff.small { --staff-u: 0.09em; }
+.staff.medium { --staff-u: 0.11em; }
+.note-display { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 0.2rem 1.2rem; }
+.note-display .note-big { min-width: 0; }
+.staff-preview { margin-top: 0.3rem; }

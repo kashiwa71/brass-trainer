@@ -1,9 +1,10 @@
-import { el, append, fmtCents, type Child } from "./dom";
+import { el, append, fmtCents, replaceChildren, type Child } from "./dom";
 import type { SettingField, SettingsValues } from "../core/trainer";
 import type { TubaModel } from "../core/tuba";
 import { practiceNotes, fingeringsFor, fingeringLabel } from "../core/tuba";
 import { noteName, hzToNote } from "../core/notes";
 import type { Frame } from "../core/analysis/frames";
+import { staff, type StaffNote } from "./staff";
 
 /** SettingField の定義から設定フォームを生成する。値の変更は onChange で通知する。 */
 export function settingsForm(
@@ -15,7 +16,8 @@ export function settingsForm(
   const form = el("div", { class: "settings" });
   const notes = practiceNotes(tuba);
   for (const field of schema) {
-    const row = el("label", { class: "setting-row" });
+    // 複数のボタンを含む行は label にしない（余白や譜例を押すと先頭のボタンが反応するため）
+    const row = el(field.type === "notes" ? "div" : "label", { class: "setting-row" });
     append(row, el("span", { class: "setting-label" }, field.label));
     let control: HTMLElement;
     switch (field.type) {
@@ -59,24 +61,33 @@ export function settingsForm(
           if (Number(values[field.key]) === n.midi) opt.selected = true;
           sel.appendChild(opt);
         }
-        sel.addEventListener("change", () => onChange({ ...values, [field.key]: Number(sel.value) }));
-        control = sel;
+        const preview = el("div", { class: "staff-preview" }, staff([{ midi: Number(values[field.key]) }], { className: "small" }));
+        sel.addEventListener("change", () => {
+          replaceChildren(preview, staff([{ midi: Number(sel.value) }], { className: "small" }));
+          onChange({ ...values, [field.key]: Number(sel.value) });
+        });
+        control = el("div", {}, sel, preview);
         break;
       }
       case "notes": {
         const selected = new Set((values[field.key] as number[]) ?? []);
         const grid = el("div", { class: "note-grid" });
+        const preview = el("div", { class: "staff-preview" });
+        const showPreview = () =>
+          replaceChildren(preview, selected.size ? staff([...selected].sort((a, b) => a - b).map((midi) => ({ midi })), { className: "small" }) : null);
+        showPreview();
         for (const n of notes) {
           const btn = el("button", { type: "button", class: `chip${selected.has(n.midi) ? " on" : ""}` }, n.name);
           btn.addEventListener("click", () => {
             if (selected.has(n.midi)) selected.delete(n.midi);
             else selected.add(n.midi);
             btn.classList.toggle("on", selected.has(n.midi));
+            showPreview();
             onChange({ ...values, [field.key]: [...selected].sort((a, b) => a - b) });
           });
           grid.appendChild(btn);
         }
-        control = grid;
+        control = el("div", {}, grid, preview);
         break;
       }
     }
@@ -187,14 +198,22 @@ export function pitchGraph(
   return canvas;
 }
 
-/** 目標音の情報カード（音名・運指・上下の倍音） */
-export function noteCard(tuba: TubaModel, midi: number, extra?: Child[]): HTMLElement {
+/**
+ * 五線譜と大きな音名を並べて出す。from を渡すと、その音を薄く先に置く（跳躍の出発音）。
+ */
+export function noteDisplay(midi: number, opts: { from?: number | null } = {}): HTMLElement {
+  const notes: StaffNote[] = opts.from != null ? [{ midi: opts.from, cls: "faded" }, { midi }] : [{ midi }];
+  return el("div", { class: "note-display" }, staff(notes, { ariaLabel: notes.map((n) => noteName(n.midi)).join(" → ") }), el("div", { class: "note-big" }, noteName(midi)));
+}
+
+/** 目標音の情報カード（五線譜・音名・運指・上下の倍音） */
+export function noteCard(tuba: TubaModel, midi: number, extra?: Child[], opts: { from?: number | null } = {}): HTMLElement {
   const fs = fingeringsFor(tuba, midi).filter((f) => f.preferred).slice(0, 2);
   const fingerText = fs.length ? fs.map((f) => `${fingeringLabel(f)}（第${f.partial}倍音）`).join(" / ") : "運指なし";
   const card = el(
     "div",
     { class: "note-card" },
-    el("div", { class: "note-big" }, noteName(midi)),
+    noteDisplay(midi, opts),
     el("div", { class: "note-sub" }, fingerText),
   );
   if (extra) append(card, ...extra);
