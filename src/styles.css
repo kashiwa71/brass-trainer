@@ -184,3 +184,43 @@ details[open] > summary { margin-bottom: 0.4rem; }
 .note-display { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 0.2rem 1.2rem; }
 .note-display .note-big { min-width: 0; }
 .staff-preview { margin-top: 0.3rem; }
+
+/* 音当てゲーム */
+.game-box { display: grid; gap: 0.4rem; }
+.game-hud { display: flex; align-items: baseline; gap: 0.9rem; flex-wrap: wrap; font-weight: 800; font-size: clamp(1.3rem, 5vw, 2rem); font-variant-numeric: tabular-nums; }
+.game-lives { color: var(--ng); letter-spacing: 0.08em; }
+.game-score small { font-size: 0.6em; color: var(--muted); }
+.game-combo { color: var(--accent); }
+.game-level { margin-left: auto; color: var(--muted); }
+.game-field { background: var(--panel); border: 2px solid var(--line); border-radius: 18px; padding: 0.3rem 0; overflow: hidden; }
+.game-svg { display: block; width: 100%; height: auto; color: var(--text); overflow: hidden; }
+.game-svg.shake { animation: game-shake 0.3s; }
+@keyframes game-shake { 25% { transform: translateX(-6px); } 50% { transform: translateX(5px); } 75% { transform: translateX(-3px); } }
+.game-rail { stroke: var(--line); stroke-width: 2; }
+.game-danger { stroke: var(--ng); stroke-width: 1.2; stroke-dasharray: 3 3; opacity: 0.8; }
+.game-aim { stroke: var(--accent); stroke-width: 1; stroke-dasharray: 2 4; opacity: 0.6; }
+.game-aim.on { stroke: var(--ok); opacity: 0.9; }
+.game-bird .game-bird-body { fill: var(--accent); }
+.game-bird .game-bird-beak { fill: var(--mid); }
+.game-bird .game-bird-eye { fill: #111; }
+.game-bird.on .game-bird-body { fill: var(--ok); }
+.game-bird.idle { opacity: 0.35; }
+.game-target { color: var(--text); opacity: 0.55; }
+.game-target.front { opacity: 1; }
+.game-ring { fill: none; stroke: var(--accent); stroke-width: 1.6; opacity: 0; }
+.game-target.front .game-ring { opacity: 1; }
+.game-target.escaped { color: var(--ng); }
+.game-label { fill: currentColor; font-size: 11px; font-weight: 800; }
+.game-burst { fill: none; stroke: var(--ok); stroke-width: 2.5; }
+.game-points { fill: var(--ok); font-size: 10px; font-weight: 900; }
+.game-points.ng { fill: var(--ng); font-size: 14px; }
+.running .game-help { display: none; }
+@media (min-width: 720px) and (orientation: landscape) {
+  .trainer-root > .game-box { grid-column: 1 / -1; }
+}
+/* 横向きで画面が低いとき: 盤面を画面に収める。練習中は鳥が音の高さを、音符の上の文字が音名を示すので、
+   チューナー帯・見出し・案内文は隠す */
+@media (max-height: 520px) {
+  .running:has(.game-box) .tuner, .running:has(.game-box) .trainer-head, .running:has(.game-box) .status { display: none; }
+  .game-svg { max-height: calc(100vh - 13rem); }
+}
