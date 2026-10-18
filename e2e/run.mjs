@@ -4,7 +4,7 @@
  *   python3 e2e/make-wavs.py
  *   npm run build && npx vite preview --port 4173 &
  *   npx playwright-core ... は不要。playwright-core と Chromium があればよい:
- *   CHROME=/path/to/chrome node e2e/run.mjs note-attack   （note-attack | attack-quality | lip-slur | tonguing）
+ *   CHROME=/path/to/chrome node e2e/run.mjs note-attack   （note-attack | note-game | attack-quality | lip-slur | tonguing）
  *   DURATION_MS=30000 で観察時間を変えられる。結果は標準出力と e2e/<scenario>.png に出る。
  */
 import { chromium } from "playwright-core";
@@ -43,6 +43,7 @@ await page.evaluate((s) => {
     "tonguing": { target: 46, syllable: "single", perBeat: "4", beats: 4, startBpm: 60, step: 4, maxBpm: 200 },
     "ear-training": { targets: [47], level: "listen", anchor: 46, tolCents: 40, holdSec: 0.6, timeoutSec: 8 },
     "drone": { target: 46, droneOctave: "1", holdSec: 4, tightCents: 10 },
+    "note-game": { targets: [47], maxLeap: "0", startTravelSec: 4, lives: 1, showNames: true, reference: false, match: "exact", tolCents: 40 },
   };
   const trainerId = s.replace(/-sing$/, "");
   localStorage.setItem(`brass-trainer.trainer.${trainerId}.v1`, JSON.stringify(presets[s]));

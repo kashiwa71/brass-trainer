@@ -17,21 +17,21 @@ const NS = "http://www.w3.org/2000/svg";
 /** 線の間隔 */
 const SP = 10;
 /** 位置 1 つ分（線と間の差）の高さ */
-const HALF = SP / 2;
+export const HALF = SP / 2;
 const CLEF_W = 40;
 const NOTE_GAP = 38;
 const FIRST_NOTE_X = CLEF_W + 22;
 
-function svg<K extends keyof SVGElementTagNameMap>(tag: K, attrs: Record<string, string | number> = {}): SVGElementTagNameMap[K] {
+export function svg<K extends keyof SVGElementTagNameMap>(tag: K, attrs: Record<string, string | number> = {}): SVGElementTagNameMap[K] {
   const node = document.createElementNS(NS, tag);
   for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, String(v));
   return node;
 }
 
-const yOf = (pos: number) => -pos * HALF;
+export const yOf = (pos: number) => -pos * HALF;
 
 /** ヘ音記号。第 4 線（F3）を 2 つの点ではさむ。 */
-function bassClef(x: number): SVGGElement {
+export function bassClef(x: number): SVGGElement {
   const g = svg("g", { class: "staff-clef", transform: `translate(${x} 0)` });
   const fLine = yOf(2);
   g.appendChild(
@@ -48,7 +48,7 @@ function bassClef(x: number): SVGGElement {
 }
 
 /** 全音符の符頭。斜めの穴を evenodd で抜く。 */
-function wholeNote(cx: number, cy: number): SVGPathElement {
+export function wholeNote(cx: number, cy: number): SVGPathElement {
   const rx = 8.2;
   const ry = 5.2;
   const hrx = 4.3;
@@ -63,7 +63,7 @@ function wholeNote(cx: number, cy: number): SVGPathElement {
   return svg("path", { d, "fill-rule": "evenodd", class: "staff-head" });
 }
 
-function flat(x: number, y: number): SVGGElement {
+export function flat(x: number, y: number): SVGGElement {
   const g = svg("g", { class: "staff-acc" });
   g.appendChild(svg("path", { d: `M ${x},${y - 16} L ${x},${y + 5}`, "stroke-width": 1.8, fill: "none" }));
   g.appendChild(svg("path", { d: `M ${x},${y + 5} C ${x + 10},${y} ${x + 8},${y - 7.5} ${x},${y - 2} L ${x},${y} C ${x + 5},${y - 4.5} ${x + 6},${y + 0.5} ${x},${y + 5} Z` }));

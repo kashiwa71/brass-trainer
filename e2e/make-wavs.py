@@ -119,3 +119,5 @@ def held(midi, sec, cents, amp=0.3):
 
 
 save("drone.wav", silence(2.0) + (held(46, 5.0, 12) + silence(2.0)) * 4)
+# 音当てゲーム: 開始の 3 秒の数え待ちの後、H2 を 6 回（命中）→ G3 を伸ばす（外れて的が届く）
+save("note-game.wav", silence(5.0) + (tone(midi_hz(47), 0.8) + silence(0.6)) * 6 + tone(midi_hz(55), 3.0) + silence(4.0))

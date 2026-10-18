@@ -6,6 +6,7 @@ import { TrainerRegistry } from "../core/trainer";
 import { earTrainer } from "./ear-training";
 import { droneTrainer } from "./drone";
 import { noteAttackTrainer } from "./note-attack";
+import { noteGameTrainer } from "./note-game";
 import { attackQualityTrainer } from "./attack-quality";
 import { lipSlurTrainer } from "./lip-slur";
 import { tonguingTrainer } from "./tonguing";
@@ -14,6 +15,7 @@ export const registry = new TrainerRegistry()
   .register(earTrainer)
   .register(droneTrainer)
   .register(noteAttackTrainer)
+  .register(noteGameTrainer)
   .register(attackQualityTrainer)
   .register(lipSlurTrainer)
   .register(tonguingTrainer);
