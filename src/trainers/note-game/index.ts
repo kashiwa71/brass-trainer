@@ -14,6 +14,7 @@ import { dailyAdvice } from "../../content/advice";
 import { Runner, midiFloat } from "../shared";
 import { GameModel, HoldMatcher, centsFromTarget, summarizeGames, type GameRecord, type MatchMode } from "./evaluate";
 import { GameField } from "./field";
+import { PitchSmoother } from "../../core/analysis/smoothing";
 
 interface Settings {
   targets: number[];
@@ -85,6 +86,8 @@ class NoteGameTrainer implements TrainerInstance {
     }
 
     const matcher = new HoldMatcher(s.tolCents, HOLD_SEC);
+    /** 鳥の高さはならした値で動かす（判定はならす前の値で行う） */
+    const aim = new PitchSmoother();
     let frontId: number | null = null;
     /** 基準音を鳴らしている間はマイクの音で判定しない */
     let muteUntil = 0;
@@ -99,7 +102,9 @@ class NoteGameTrainer implements TrainerInstance {
       const valid = f.hz !== null && f.db > audio.gateDb && f.clarity >= 0.5 && f.t >= muteUntil;
       const mf = valid ? midiFloat(f.hz as number, app.a4Hz) : null;
       const cents = mf !== null && front ? centsFromTarget(mf, front.midi, s.match) : null;
-      field.setAim(mf, cents !== null && Math.abs(cents) <= s.tolCents);
+      const shown = aim.push(f.t, mf);
+      const shownCents = shown !== null && front ? centsFromTarget(shown, front.midi, s.match) : null;
+      field.setAim(shown, shownCents !== null && Math.abs(shownCents) <= s.tolCents);
       if (!front) return;
       if (mf !== null) model.hear(Math.round(mf));
       if (!matcher.push(f.t, cents)) return;

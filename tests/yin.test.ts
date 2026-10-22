@@ -22,6 +22,32 @@ describe("yin", () => {
     const r = yin(buf, opts);
     expect(Math.abs(centsBetween(hz, r.hz as number))).toBeLessThan(10);
   });
+  it("強奏で、周期の 2 倍に弱い成分が混じっても 1 オクターブ下にしない", () => {
+    // 実際のチューバの ff で起きた: 本当の周期の谷も十分深いが、2 倍の周期の谷がわずかに深く出る
+    for (const hz of [73.4, 116.5, 146.8]) {
+      const buf = synth(hz, 1024 / SR, SR);
+      for (let i = 0; i < buf.length; i++) {
+        const t = i / SR;
+        buf[i] += 0.03 * (Math.sin(Math.PI * hz * t + 0.3) + Math.sin(3 * Math.PI * hz * t + 0.3));
+      }
+      const r = yin(buf, opts);
+      expect(Math.abs(centsBetween(hz, r.hz as number))).toBeLessThan(10);
+    }
+  });
+  it("雑音で谷が浅くても、周期の 2 倍・3 倍の谷を選ばない", () => {
+    let seed = 7;
+    const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    for (const hz of [87.3, 123.5]) {
+      let wrong = 0;
+      for (let k = 0; k < 30; k++) {
+        const buf = synth(hz, 1024 / SR, SR);
+        for (let i = 0; i < buf.length; i++) buf[i] += (rnd() - 0.5) * 0.45;
+        const r = yin(buf, opts);
+        if (r.hz === null || Math.abs(centsBetween(hz, r.hz)) > 50) wrong++;
+      }
+      expect(wrong).toBeLessThanOrEqual(1);
+    }
+  });
   it("雑音では検出しない", () => {
     const buf = new Float32Array(1024);
     let seed = 1;

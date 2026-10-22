@@ -14,6 +14,7 @@ import { Metronome } from "../core/audio/metronome";
 import { HistoryStore } from "../core/history";
 import { TUBA_MODELS } from "../core/tuba";
 import { WakeLock } from "../core/wakelock";
+import { BUILD, versionLabel } from "../core/version";
 import type { TrainerRegistry, TrainerInstance, TrainerModule, SettingsValues, AppSettings } from "../core/trainer";
 import { loadAppSettings, saveAppSettings, loadTrainerSettings, saveTrainerSettings } from "../core/settings";
 import { dailyAdvice, type Topic } from "../content/advice";
@@ -99,6 +100,7 @@ export class App {
       adviceCard(dailyAdvice("general"), { compact: true, label: "今日のポイント" }),
       el("p", { class: "muted small" }, `使用楽器: ${this.tuba.label} ・ A = ${this.appSettings.a4Hz} Hz ・ 音名はドイツ音名（B = シ♭、H = シ）。音を取るのが苦手なら、上から順に「耳トレ」→「ドローン合わせ」→「音当て」の順で進めてください。`),
       list,
+      el("footer", { class: "app-version muted small" }, versionLabel(BUILD)),
     );
   }
 
@@ -148,6 +150,8 @@ export class App {
       el("h3", {}, "履歴"),
       el("div", { class: "row" }, exportBtn, clearBtn),
       el("p", { class: "muted small" }, "履歴はこの端末のブラウザーにだけ保存されます。"),
+      el("h3", {}, "このアプリについて"),
+      el("p", { class: "app-version-detail" }, versionLabel(BUILD)),
     );
   }
 
@@ -159,7 +163,7 @@ export class App {
   private renderTrainer(mod: TrainerModule): void {
     let settings: SettingsValues = loadTrainerSettings(mod.id, mod.defaultSettings);
     const status = el("div", { class: "status" }, "「開始」を押してください（マイクを使います）");
-    const tunerStrip = new TunerStrip(this.appSettings.a4Hz);
+    const tunerStrip = new TunerStrip(this.appSettings.a4Hz, () => this.audio.gateDb);
     const trainerRoot = el("div", { class: "trainer-root" });
     const startBtn = el("button", { class: "btn primary big", type: "button" }, "開始");
     const stopBtn = el("button", { class: "btn big", type: "button", disabled: true }, "停止");
