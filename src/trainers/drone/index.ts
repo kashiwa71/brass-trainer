@@ -10,6 +10,7 @@ import { PitchNeedle, noteCard, table } from "../../ui/components";
 import { adviceCard, coachingBlock } from "../../ui/advice";
 import { dailyAdvice } from "../../content/advice";
 import { Runner, midiFloat } from "../shared";
+import { PitchSmoother } from "../../core/analysis/smoothing";
 import { pitchClassCents } from "../ear-training/evaluate";
 import { evaluateDrone } from "./evaluate";
 
@@ -58,9 +59,11 @@ class DroneTrainer implements TrainerInstance {
     const droneMidi = target + (this.s.droneOctave === "1" ? 12 : 0);
     tone.startDrone(droneMidi, app.a4Hz);
     replaceChildren(this.stage, noteCard(tuba, target), this.needle.root);
+    const smoother = new PitchSmoother();
     this.offFrame = audio.onFrame((f) => {
       const valid = f.hz !== null && f.db > audio.gateDb && f.clarity >= 0.5;
-      this.needle.update(valid ? pitchClassCents(midiFloat(f.hz as number, app.a4Hz), target) : null, this.s.tightCents);
+      const shown = smoother.push(f.t, valid ? midiFloat(f.hz as number, app.a4Hz) : null);
+      this.needle.update(shown === null ? null : pitchClassCents(shown, target), this.s.tightCents);
     });
     while (!r.isAborted) {
       this.ctx.setStatus(`ドローンに合わせて ${noteName(target)} を ${this.s.holdSec} 秒伸ばしてください`);

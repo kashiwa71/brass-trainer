@@ -2,8 +2,9 @@ import { el, append, fmtCents, replaceChildren, type Child } from "./dom";
 import type { SettingField, SettingsValues } from "../core/trainer";
 import type { TubaModel } from "../core/tuba";
 import { practiceNotes, fingeringsFor, fingeringLabel } from "../core/tuba";
-import { noteName, hzToNote } from "../core/notes";
+import { noteName, hzToNote, hzToMidiFloat } from "../core/notes";
 import type { Frame } from "../core/analysis/frames";
+import { PitchSmoother, NoteNameHold } from "../core/analysis/smoothing";
 import { staff, type StaffNote } from "./staff";
 
 /** SettingField の定義から設定フォームを生成する。値の変更は onChange で通知する。 */
@@ -98,15 +99,21 @@ export function settingsForm(
   return form;
 }
 
-/** 現在のピッチ・音量を表示する帯 */
+/** 現在のピッチ・音量を表示する帯。ピッチはならしてから出す（PitchSmoother） */
 export class TunerStrip {
   readonly root: HTMLElement;
   private nameEl: HTMLElement;
   private centsEl: HTMLElement;
   private needle: HTMLElement;
   private level: HTMLElement;
+  private smoother = new PitchSmoother();
+  private nameHold = new NoteNameHold();
 
-  constructor(private readonly a4Hz: number) {
+  /** gateDb はこの音量以下を無音として扱う閾値（暗騒音のピッチを拾って表示が躍らないように） */
+  constructor(
+    private readonly a4Hz: number,
+    private readonly gateDb: () => number = () => -Infinity,
+  ) {
     this.nameEl = el("div", { class: "tuner-name" }, "–");
     this.centsEl = el("div", { class: "tuner-cents" }, "");
     this.needle = el("div", { class: "tuner-needle" });
@@ -124,17 +131,19 @@ export class TunerStrip {
   update(f: Frame): void {
     const lvl = Math.max(0, Math.min(1, (f.db + 70) / 70));
     this.level.style.width = `${lvl * 100}%`;
-    if (f.hz === null || f.clarity < 0.5) {
+    const valid = f.hz !== null && f.clarity >= 0.5 && f.db > this.gateDb();
+    const note = this.nameHold.push(this.smoother.push(f.t, valid ? hzToMidiFloat(f.hz as number, this.a4Hz) : null));
+    if (note === null) {
       this.nameEl.textContent = "–";
       this.centsEl.textContent = "";
       this.needle.style.left = "50%";
       this.root.classList.remove("in-tune");
       return;
     }
-    const { midi, cents } = hzToNote(f.hz, this.a4Hz);
+    const { midi, cents } = note;
     this.nameEl.textContent = noteName(midi);
     this.centsEl.textContent = `${fmtCents(cents)} ¢`;
-    this.needle.style.left = `${50 + cents}%`;
+    this.needle.style.left = `${Math.max(0, Math.min(100, 50 + cents))}%`;
     this.root.classList.toggle("in-tune", Math.abs(cents) <= 10);
   }
 }

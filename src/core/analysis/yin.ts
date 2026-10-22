@@ -45,31 +45,30 @@ export function yin(buffer: Float32Array, opts: YinOptions): YinResult {
     cmnd[tau] = running === 0 ? 1 : (d[tau] * tau) / running;
   }
 
-  // 閾値を最初に下回る谷を探す
-  let tau = -1;
+  // 周期的な音では、本当の周期の 2 倍・3 倍（1 オクターブ下、12 度下）にもほぼ同じ深さの谷が並ぶ。
+  // 雑音や強奏で谷が浅くなると深さの順位がフレームごとに入れ替わるので、いちばん深い谷を採ると
+  // 倍数の間を飛び回る。いちばん深い谷に近い深さの谷のうち、周期が最も短いものを採る。
+  // 雑音で谷の底が細かく割れることがあるので、基準を下回り続ける区間の中で最も深い点を底とする。
+  let deepest = Infinity;
+  for (let t = tauMin; t <= tauMax; t++) deepest = Math.min(deepest, cmnd[t]);
+  const level = Math.max(threshold, deepest * 1.2 + 0.03);
+  let tau = tauMin;
   for (let t = tauMin; t <= tauMax; t++) {
-    if (cmnd[t] < threshold) {
-      while (t + 1 <= tauMax && cmnd[t + 1] < cmnd[t]) t++;
-      tau = t;
-      break;
-    }
+    if (cmnd[t] > level) continue;
+    tau = t;
+    while (t + 1 <= tauMax && cmnd[t + 1] <= level) if (cmnd[++t] < cmnd[tau]) tau = t;
+    break;
   }
-  if (tau === -1) {
-    // 閾値未満がなければ最小値を採用（clarity で信頼度を伝える）
-    let best = tauMin;
-    for (let t = tauMin + 1; t <= tauMax; t++) if (cmnd[t] < cmnd[best]) best = t;
-    tau = best;
-    const clarity = 1 - cmnd[tau];
-    if (clarity < 0.5) return { hz: null, clarity: Math.max(0, clarity) };
-  }
+  if (1 - cmnd[tau] < 0.5) return { hz: null, clarity: Math.max(0, 1 - cmnd[tau]) };
 
   // オクターブ誤検出の補正: 低音のチューバは第 2 倍音が強く、半分の周期で谷ができやすい。
   // 2τ の谷が τ の谷より明らかに深ければ、2τ（1 オクターブ下）を採用する。
+  // 強奏の実音では τ の谷が十分深くても 2τ の谷がさらに深く出る（差は 0.03 未満）ことがあるので、
+  // 比ではなく深さの差で見る。雑音で谷全体が浅いときは、差の基準も大きくする。
   if (tau * 2 + 2 <= tauMax) {
     let t2 = tau * 2;
     for (let t = tau * 2 - 2; t <= tau * 2 + 2; t++) if (cmnd[t] < cmnd[t2]) t2 = t;
-    // τ の谷が既に十分深い（真の周期）なら補正しない
-    if (cmnd[tau] > 0.02 && cmnd[t2] < cmnd[tau] * 0.5) tau = t2;
+    if (cmnd[tau] - cmnd[t2] > Math.max(0.05, cmnd[tau] * 0.25)) tau = t2;
   }
 
   // 放物線補間で τ を細かくする

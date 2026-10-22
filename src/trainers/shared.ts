@@ -2,6 +2,7 @@
 import type { AudioEngine } from "../core/audio/engine";
 import type { Frame } from "../core/analysis/frames";
 import { OnsetDetector } from "../core/analysis/onset";
+import { PitchSmoother } from "../core/analysis/smoothing";
 import { hzToNote } from "../core/notes";
 import { evaluateSing, pitchClassCents, type SingMatch } from "./ear-training/evaluate";
 
@@ -114,7 +115,7 @@ export interface SingGateOptions {
   timeoutMs: number;
   tolCents?: number;
   holdSec?: number;
-  /** 表示更新用（目標からのずれ、無音なら null） */
+  /** 表示更新用（目標からのずれ、無音なら null）。表示が震えないようならした値を渡す */
   onCents?: (cents: number | null) => void;
 }
 
@@ -127,6 +128,7 @@ export function singGate(runner: Runner, audio: AudioEngine, opts: SingGateOptio
   const hold = opts.holdSec ?? 0.6;
   const frames: Frame[] = [];
   const startT = audio.currentTime;
+  const smoother = new PitchSmoother();
   return new Promise((resolve) => {
     let done = false;
     const finish = (r: SingMatch) => {
@@ -139,7 +141,8 @@ export function singGate(runner: Runner, audio: AudioEngine, opts: SingGateOptio
     const off = audio.onFrame((f) => {
       frames.push(f);
       const valid = f.hz !== null && f.db > audio.gateDb && f.clarity >= 0.5;
-      opts.onCents?.(valid ? pitchClassCents(midiFloat(f.hz as number, opts.a4Hz), opts.targetMidi) : null);
+      const shown = smoother.push(f.t, valid ? midiFloat(f.hz as number, opts.a4Hz) : null);
+      opts.onCents?.(shown === null ? null : pitchClassCents(shown, opts.targetMidi));
       // 直近 2 秒だけ評価する（古い迷いは無視）
       while (frames.length > 0 && frames[0].t < f.t - 2) frames.shift();
       const r = evaluateSing(frames, startT, opts.targetMidi, opts.a4Hz, audio.gateDb, { tolCents: tol, holdSec: hold });

@@ -159,7 +159,7 @@ export class App {
   private renderTrainer(mod: TrainerModule): void {
     let settings: SettingsValues = loadTrainerSettings(mod.id, mod.defaultSettings);
     const status = el("div", { class: "status" }, "「開始」を押してください（マイクを使います）");
-    const tunerStrip = new TunerStrip(this.appSettings.a4Hz);
+    const tunerStrip = new TunerStrip(this.appSettings.a4Hz, () => this.audio.gateDb);
     const trainerRoot = el("div", { class: "trainer-root" });
     const startBtn = el("button", { class: "btn primary big", type: "button" }, "開始");
     const stopBtn = el("button", { class: "btn big", type: "button", disabled: true }, "停止");

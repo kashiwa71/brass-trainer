@@ -40,6 +40,7 @@
 - `Runner`（`src/trainers/shared.ts`）: 停止ボタンで中断できる `sleep` / `waitForOnset` / `collectUntil`
 - `singGate`（`src/trainers/shared.ts`）: 声やバズが目標の音名に収まるまで待つ（オクターブは問わない）
 - `PitchNeedle`（`src/ui/components.ts`）: 高い・低いを大きく示す針
+- `PitchSmoother`（`src/core/analysis/smoothing.ts`）: 針や音名に出す前にピッチをならす。フレームをそのまま出すと表示が震えるため、表示には必ず通す（判定にはならす前の値を使う）
 - `OnsetDetector`（`src/core/analysis/onset.ts`）: 発音の検出
 - `segmentNotes`（`src/core/analysis/segments.ts`）: フレーム列を「音」の区間に分ける（スラー向け）
 - `judgeAttack` / `evaluateAttack` / `evaluateSlur` / `evaluateTonguing`: 既存の判定関数。組み合わせて新しい練習を作れる
