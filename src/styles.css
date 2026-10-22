@@ -55,6 +55,7 @@ details[open] > summary { margin-bottom: 0.4rem; }
 /* 練習画面 */
 .trainer-head { display: flex; align-items: baseline; gap: 0.8rem; margin-bottom: 0.5rem; }
 .back { color: var(--muted); min-height: 44px; display: inline-flex; align-items: center; }
+.app-version { margin-top: 2rem; text-align: center; overflow-wrap: anywhere; }
 .desc, .settings-box { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 0.5rem 0.9rem; margin-bottom: 0.6rem; }
 .running .desc, .running .settings-box, .running .stats, .running h3, .running .advice.daily { display: none; }
 .settings { display: grid; gap: 0.7rem; }
