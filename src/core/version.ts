@@ -1,7 +1,7 @@
 /**
  * 画面に出す版。値はビルド時に埋め込む（vite.config.ts の define）。
- * スマホに最新版が入ったかを確かめるのに使う。版番号は package.json を手で上げたときだけ変わるが、
- * コミット ID とビルド日時は配信のたびに変わる。
+ * スマホに最新版が入ったかを確かめるのに使う。版番号は package.json を手で上げたときだけ、
+ * コミット ID は新しいコミットを配信したときに変わる。ビルド日時は配信のたびに変わる。
  */
 export interface BuildInfo {
   /** package.json の version */
